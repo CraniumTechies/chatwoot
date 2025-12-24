@@ -11,7 +11,7 @@ ENV PNPM_VERSION=${PNPM_VERSION}
 # For development docker-compose file overrides ARGS
 ARG BUNDLE_WITHOUT="development:test"
 ENV BUNDLE_WITHOUT ${BUNDLE_WITHOUT}
-ENV BUNDLER_VERSION=2.5.11
+ENV BUNDLER_VERSION=4.0.3
 
 ARG RAILS_SERVE_STATIC_FILES=true
 ENV RAILS_SERVE_STATIC_FILES ${RAILS_SERVE_STATIC_FILES}
@@ -24,8 +24,9 @@ ENV NODE_OPTIONS ${NODE_OPTIONS}
 
 ENV BUNDLE_PATH="/gems"
 
-RUN apk update && apk add --no-cache \
+RUN apk update && apk add  \
   openssl \
+  openssl-dev \
   tar \
   build-base \
   tzdata \
@@ -34,6 +35,15 @@ RUN apk update && apk add --no-cache \
   git \
   curl \
   xz \
+  musl \
+  ruby-full \
+  ruby-dev \
+  gcc \
+  make \
+  musl-dev \
+  g++ \
+  linux-headers \
+  vips \
   && mkdir -p /var/app \
   && gem install bundler
 
@@ -62,7 +72,6 @@ COPY Gemfile Gemfile.lock ./
 # https://github.com/googleapis/google-cloud-ruby/issues/13306
 # adding xz as nokogiri was failing to build libxml
 # https://github.com/chatwoot/chatwoot/issues/4045
-RUN apk update && apk add --no-cache build-base musl ruby-full ruby-dev gcc make musl-dev openssl openssl-dev g++ linux-headers xz vips
 RUN bundle config set --local force_ruby_platform true
 
 # Do not install development or test gems in production
@@ -105,7 +114,7 @@ ENV PNPM_VERSION=${PNPM_VERSION}
 
 ARG BUNDLE_WITHOUT="development:test"
 ENV BUNDLE_WITHOUT ${BUNDLE_WITHOUT}
-ENV BUNDLER_VERSION=2.5.11
+ENV BUNDLER_VERSION=4.0.3
 
 ARG EXECJS_RUNTIME="Disabled"
 ENV EXECJS_RUNTIME ${EXECJS_RUNTIME}
@@ -120,7 +129,7 @@ ARG RAILS_ENV=production
 ENV RAILS_ENV ${RAILS_ENV}
 ENV BUNDLE_PATH="/gems"
 
-RUN apk update && apk add --no-cache \
+RUN apk update && apk add  \
   build-base \
   openssl \
   tzdata \
@@ -132,14 +141,6 @@ RUN apk update && apk add --no-cache \
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
-
-RUN if [ "$RAILS_ENV" != "production" ]; then \
-  apk add --no-cache curl \
-  && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-  && npm install -g pnpm@${PNPM_VERSION} \
-  && pnpm --version; \
-  fi
 
 COPY --from=pre-builder /gems/ /gems/
 COPY --from=pre-builder /app /app
