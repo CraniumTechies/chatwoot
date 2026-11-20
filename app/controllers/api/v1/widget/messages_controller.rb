@@ -7,9 +7,17 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   end
 
   def create
-    @message = conversation.messages.new(message_params)
-    build_attachment
-    @message.save!
+    # A retried send must not create another incoming message or notification.
+    conversation.with_lock do
+      client_id = permitted_params.dig(:message, :echo_id).to_s.first(100)
+      @message = conversation.messages.incoming.find_by("content_attributes ->> 'client_message_id' = ?", client_id) if client_id.present?
+      unless @message
+        @message = conversation.messages.new(message_params)
+        @message.content_attributes = @message.content_attributes.merge('client_message_id' => client_id) if client_id.present?
+        build_attachment
+        @message.save!
+      end
+    end
   end
 
   def update

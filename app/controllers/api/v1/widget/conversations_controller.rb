@@ -1,6 +1,6 @@
 class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   include Events::Types
-  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes]
+  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes, :update_planning_preferences]
 
   def index
     @conversation = conversation
@@ -73,6 +73,35 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     conversation.custom_attributes = conversation.custom_attributes.excluding(params[:custom_attribute])
     conversation.save!
     render json: conversation
+  end
+
+  # Planning preferences are not availability, an offer or a booking confirmation.
+  def update_planning_preferences
+    values = params.permit(:revision, :start_date, :end_date, :adults, :children, :notes)
+    adults = Integer(values[:adults], exception: false)
+    children = Integer(values[:children], exception: false)
+    start_date = Date.iso8601(values[:start_date].to_s) if values[:start_date].present?
+    end_date = Date.iso8601(values[:end_date].to_s) if values[:end_date].present?
+    invalid = adults.nil? || children.nil? || adults < 1 || adults > 100 || children.negative? || children > 100
+    invalid ||= start_date.present? != end_date.present? || (start_date && end_date && end_date < start_date)
+    return render json: { error: 'Invalid planning preferences' }, status: :unprocessable_entity if invalid
+
+    conversation.with_lock do
+      planning = conversation.custom_attributes['planning_request']
+      return head :not_found unless planning.is_a?(Hash)
+      return head :conflict unless Integer(values[:revision], exception: false) == planning.fetch('revision', 1)
+
+      updated = planning.merge('revision' => planning.fetch('revision', 1) + 1,
+                               'dates' => { 'start' => start_date&.iso8601, 'end' => end_date&.iso8601 },
+                               'party' => { 'adults' => adults, 'children' => children }, 'notes' => values[:notes].to_s.first(2000))
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('planning_request' => updated))
+      conversation.messages.create!(account_id: conversation.account_id, inbox_id: conversation.inbox_id, sender: @contact,
+                                    message_type: :incoming, content: 'Trip preferences updated',
+                                    content_attributes: { planning_event: { type: 'preferences_updated', revision: updated['revision'] } })
+      render json: { planning_request: updated }
+    end
+  rescue Date::Error
+    render json: { error: 'Invalid travel dates' }, status: :unprocessable_entity
   end
 
   private

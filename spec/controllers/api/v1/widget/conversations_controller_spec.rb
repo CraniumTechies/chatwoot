@@ -332,3 +332,34 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
     end
   end
 end
+
+RSpec.describe 'Traveller planning preferences', type: :request do
+  let(:account) { create(:account) }
+  let(:channel) { create(:channel_widget, account: account) }
+  let(:contact) { create(:contact, account: account) }
+  let(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: channel.inbox) }
+  let!(:conversation) do
+    create(:conversation, account: account, inbox: channel.inbox, contact: contact, contact_inbox: contact_inbox,
+                          custom_attributes: { planning_request: { revision: 1, experience: { id: 'immutable-listing' } }, internal_note: 'private' })
+  end
+  let(:token) { Widget::TokenService.new(payload: { source_id: contact_inbox.source_id, inbox_id: channel.inbox.id }).generate_token }
+
+  it 'exposes only public planning context and real assignment' do
+    get '/api/v1/widget/conversations', params: { website_token: channel.website_token }, headers: { 'X-Auth-Token' => token }, as: :json
+    expect(response).to have_http_status(:success)
+    expect(response.parsed_body['planning_request']['revision']).to eq(1)
+    expect(response.parsed_body.to_s).not_to include('internal_note')
+    expect(response.parsed_body['capabilities']['structured_offers']).to be(false)
+  end
+
+  it 'validates preference updates and rejects stale revisions' do
+    params = { website_token: channel.website_token, revision: 1, adults: 2, children: 0,
+               start_date: '2026-12-01', end_date: '2026-12-03', message: {} }
+    post '/api/v1/widget/conversations/update_planning_preferences', params: params, headers: { 'X-Auth-Token' => token }, as: :json
+    expect(response).to have_http_status(:success)
+    expect(conversation.reload.custom_attributes.dig('planning_request', 'experience', 'id')).to eq('immutable-listing')
+    expect(conversation.custom_attributes.dig('planning_request', 'revision')).to eq(2)
+    post '/api/v1/widget/conversations/update_planning_preferences', params: params, headers: { 'X-Auth-Token' => token }, as: :json
+    expect(response).to have_http_status(:conflict)
+  end
+end

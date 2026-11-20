@@ -384,6 +384,7 @@ Rails.application.routes.draw do
           collection do
             post :destroy_custom_attributes
             post :set_custom_attributes
+            post :update_planning_preferences
             post :update_last_seen
             post :toggle_typing
             post :transcript

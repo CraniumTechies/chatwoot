@@ -10,7 +10,7 @@
 - name: BRAND_URL
   value: 'https://www.chatwoot.com'
 - name: WIDGET_BRAND_URL
-  value: 'https://www.chatwoot.com'
+  value: 'https://sulwe.dev'
 - name: BRAND_NAME
   value: 'Chatwoot'
 - name: TERMS_URL
