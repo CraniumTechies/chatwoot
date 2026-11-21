@@ -1,3 +1,5 @@
+require Rails.root.join('lib/widget_proxy_identity').to_s
+
 class Rack::Attack
   ### Configure Cache ###
 
@@ -157,8 +159,10 @@ class Rack::Attack
   # TODO: Deprecate this feature in future after finding a better solution
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_RACK_ATTACK_WIDGET_API', true))
     ## Prevent Conversation Bombing on Widget APIs ###
-    throttle('api/v1/widget/conversations', limit: 6, period: 12.hours) do |req|
-      req.ip if req.path_without_extentions == '/api/v1/widget/conversations' && req.post?
+    throttle('api/v1/widget/conversations', limit: 20, period: 12.hours) do |req|
+      if req.path_without_extentions == '/api/v1/widget/conversations' && req.post?
+        WidgetProxyIdentity.verify(req, cache: Rack::Attack.cache.store) || req.ip
+      end
     end
 
     ## Prevent Contact update Bombing in Widget API ###

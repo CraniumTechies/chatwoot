@@ -1,0 +1,14 @@
+{
+  "secret": "widget-proxy-conformance-test-key-only-1234",
+  "subject": "test-traveller-a",
+  "now": 1795219200,
+  "website": "test-tours-widget",
+  "session": "test-widget-session",
+  "body": "{\"contact\":{\"name\":\"Test traveller\"},\"message\":{\"content\":\"Dates for our trip — safari\"},\"custom_attributes\":{\"request_type\":\"tour_request\"}}",
+  "headers": {
+    "X-Widget-Proxy-Identity": "90320356ebf940f3ece1d09085c7c39552e4cbeddcc514e71e8fe84f73784a48",
+    "X-Widget-Proxy-Timestamp": "1795219200",
+    "X-Widget-Proxy-Nonce": "0123456789abcdef0123456789abcdef",
+    "X-Widget-Proxy-Signature": "986f424ee626244e446f3562cd382b523821c437e547cc5dbd0a129c0c27527e"
+  }
+}
